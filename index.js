@@ -1,12 +1,3 @@
-var _ = {
-	flatten: require('lodash/flatten'),
-	map: require('lodash/map'),
-	mapValues: require('lodash/mapValues'),
-	padEnd: require('lodash/padEnd'),
-	trimEnd: require('lodash/trimEnd'),
-};
-
-var async = require('async-chainable');
 var events = require('events');
 var stream = require('stream');
 
@@ -126,7 +117,7 @@ var config = {
 	endMatcher: /^ER\s+?-/,
 	fieldMatcher: /^([A-Z0-9]{2}\s+?)- (.*)$/,
 	outputFieldPadding: 4,
-	outputField: field => _.padEnd(field, 4, ' '),
+	outputField: field => field.padEnd(4, ' '),
 };
 
 function parse(content) {
@@ -152,17 +143,19 @@ function parse(content) {
 					ref.type = ref.type && _typeTranslations[ref.type] ? _typeTranslations[ref.type] : 'unknown';
 					// }}}
 					// }}}
-					emitter.emit('ref', _.mapValues(ref, function(v, k) {
-						if (typeof v != 'string') return v;
-						return _.trimEnd(v);
-					}));
+					Object.keys(ref).forEach(k => {
+						if (typeof ref[k] == 'string')
+							ref[k] = ref[k].trimEnd()
+					});
+
+					emitter.emit('ref', ref);
 					ref = {};
 					refField = undefined;
 				}
 			} else {
-				var bits = config.fieldMatcher.exec(_.trimEnd(line));
+				var bits = config.fieldMatcher.exec(line.trimEnd());
 				if (bits) {
-					bits[1] = _.trimEnd(bits[1]); // Remove suffix spaces
+					bits[1] = bits[1].trimEnd(); // Remove suffix spaces
 					if (_fieldTranslations[bits[1]]) { // Only accept known fields
 						refField = _fieldTranslations[bits[1]];
 						if (refField.isArray) {
@@ -222,16 +215,16 @@ function _pusher(stream, isLast, child, settings) {
 		delete child.pages
 	}
 
-	buffer += _.flatten(
-		_.map(child, (v, k) => ({key: k, value: v}))
-			.filter(field => !! _fieldTranslationsReverse[field.key]) // We know the key type?
-			.map(field => Array.isArray(field.value) ? field.value.map(v => ({key: field.key, value: v})) : field) // Expand array type values
-	) // Transform back into a iterable array
+	buffer += Object.entries(child)
+		.map(([key, value]) => ({key, value}))
+		.filter(field => !! _fieldTranslationsReverse[field.key]) // We know the key type?
+		.map(field => Array.isArray(field.value) ? field.value.map(v => ({key: field.key, value: v})) : field) // Expand array type values
+		.flat()
 		.map(field => config.outputField(_fieldTranslationsReverse[field.key].ris) + '- ' + field.value)
 		.join('\n');
 	buffer += '\nER  - \n';
 
-	stream.write(_.trimEnd(buffer) + (!isLast ? '\n' : ''));
+	stream.write(buffer.trimEnd(buffer) + (!isLast ? '\n' : ''));
 };
 
 function output(options) {
@@ -242,56 +235,39 @@ function output(options) {
 		...options,
 	};
 
-	async()
-		// Sanity checks {{{
-		.then(function(next) {
-			if (!settings.content) return next('No content has been provided');
-			next();
-		})
-		// }}}
-		// References {{{
-		.then(function(next) {
-			if (typeof settings.content == 'function') { // Callback
-				var batchNo = 0;
-				var fetcher = function() {
-					settings.content(function(err, data, isLast) {
-						if (err) return emitter.error(err);
-						if (Array.isArray(data) && data.length > 0) { // Callback provided array
-							data.forEach(function(d, dIndex) {
-								_pusher(settings.stream, isLast && dIndex == data.length-1, d, settings);
-							});
-							setTimeout(fetcher);
-						} else if(!Array.isArray(data) && typeof data == 'object') { // Callback provided single ref
-							_pusher(settings.stream, isLast, data, settings);
-							setTimeout(fetcher);
-						} else { // End of stream
-							next();
-						}
-					}, batchNo++);
-				};
-				fetcher();
-			} else if (Array.isArray(settings.content)) { // Array of refs
-				settings.content.forEach(function(d, dIndex) {
-					_pusher(settings.stream, dIndex == settings.content.length -1, d, settings);
-				});
-				next();
-			} else if (Array.isObject(settings.content)) { // Single ref
-				_pusher(settings.stream, true, data, settings);
-				next();
-			}
-		})
-		// }}}
-		// Stream end {{{
-		.then(function(next) {
-			settings.stream.end();
-			next();
-		})
-		// }}}
-		// End {{{
-		.end(function(err) {
-			if (err) throw new Error(err);
-		});
-		// }}}
+	if (!settings.content) return next('No content has been provided');
+
+	new Promise(resolve => {
+		if (typeof settings.content == 'function') { // Callback
+			var batchNo = 0;
+			var fetcher = function() {
+				settings.content(function(err, data, isLast) {
+					if (err) return emitter.error(err);
+					if (Array.isArray(data) && data.length > 0) { // Callback provided array
+						data.forEach(function(d, dIndex) {
+							_pusher(settings.stream, isLast && dIndex == data.length-1, d, settings);
+						});
+						setTimeout(fetcher);
+					} else if(!Array.isArray(data) && typeof data == 'object') { // Callback provided single ref
+						_pusher(settings.stream, isLast, data, settings);
+						setTimeout(fetcher);
+					} else { // End of stream
+						resolve();
+					}
+				}, batchNo++);
+			};
+			fetcher();
+		} else if (Array.isArray(settings.content)) { // Array of refs
+			settings.content.forEach(function(d, dIndex) {
+				_pusher(settings.stream, dIndex == settings.content.length -1, d, settings);
+			});
+			resolve();
+		} else if (Array.isObject(settings.content)) { // Single ref
+			_pusher(settings.stream, true, data, settings);
+			resolve();
+		}
+	})
+		.then(()=> settings.stream.end());
 
 	return settings.stream;
 }
