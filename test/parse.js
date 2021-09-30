@@ -11,9 +11,14 @@ describe('RIS parsing', function() {
 			'DO  - https://dx.doi.org/10.1024/1422-4917/a000447\n' +
 			'ER  - \n' +
 			'\n' +
-			'TY  - JOUR\n' +
+			'TY  - BOOK\n' +
 			'TI  - Test article 2\n' +
 			'AB  - Altered cognitive control and threat processing mediates the relationship between anxiety symptoms and reading problems in children\n' +
+			'L1  - https://pdf\n' +
+			'L2  - https://fulltext\n' +
+			'L3  - https://related\n' +
+			'L4  - https://images\n' +
+			'UR  - https://url\n' +
 			'ER  - \n';
 
 		var refs = [];
@@ -29,7 +34,14 @@ describe('RIS parsing', function() {
 					{
 						"abstract": "Altered cognitive control and threat processing mediates the relationship between anxiety symptoms and reading problems in children",
 						"title": "Test article 2",
-						"type": "journalArticle",
+						"type": "book",
+						"urls": [
+							'https://pdf',
+							'https://fulltext',
+							'https://related',
+							'https://images',
+							'https://url',
+						],
 					},
 				]);
 				done();

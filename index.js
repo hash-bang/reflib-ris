@@ -7,6 +7,8 @@ var _fieldTranslations = { // Map of RIS fields to RefLib fields
 	'A3': {reflib: 'authors', isArray: true, split: true},
 	'A4': {reflib: 'authors', isArray: true, split: true},
 	'AB': {reflib: 'abstract'},
+	'AD': {reflib: 'address', append: true},
+	'AN': {reflib: 'accession'},
 	'AU': {reflib: 'authors', isArray: true},
 	'C1': {reflib: 'custom1'},
 	'C2': {reflib: 'custom2'},
@@ -17,7 +19,8 @@ var _fieldTranslations = { // Map of RIS fields to RefLib fields
 	'C7': {reflib: 'custom7'},
 	'C8': {reflib: 'custom8'},
 	'CA': {reflib: 'caption'},
-	'CY': {reflib: 'address'},
+	'CA': {reflib: 'caption'},
+	'CY': {reflib: 'fallbackCity'},
 	'DA': {reflib: 'date'},
 	'DB': {reflib: 'database'},
 	'DO': {reflib: 'doi'},
@@ -28,16 +31,27 @@ var _fieldTranslations = { // Map of RIS fields to RefLib fields
 	'J1': {reflib: 'journal'},
 	'JF': {reflib: 'journal'},
 	'KW': {reflib: 'keywords', isArray: true},
+	'L1': {reflib: 'urls', isArray: true},
+	'L2': {reflib: 'urls', isArray: true},
+	'L3': {reflib: 'urls', isArray: true},
+	'L4': {reflib: 'urls', isArray: true},
 	'LA': {reflib: 'language'},
+	'LB': {reflib: 'label'},
+	'LK': {reflib: 'urls', isArray: true},
 	'N1': {reflib: 'notes'},
-	'N2': {reflib: 'abstract'},
+	'N2': {reflib: 'fallbackAbstract'},
+	'PB': {reflib: 'publisher'},
+	'PY': {reflib: 'year'},
 	'SN': {reflib: 'isbn'},
 	'SP': {reflib: 'startPage'},
 	'T1': {reflib: 'title'},
+	'T2': {reflib: 'journal'},
 	'TI': {reflib: 'title'},
 	'TY': {reflib: 'type'},
+	'UR': {reflib: 'urls', isArray: true},
 	'VL': {reflib: 'volume'},
 	'Y1': {reflib: 'date'},
+	'Y2': {reflib: 'accessDate'},
 };
 
 var _fieldTranslationsReverse = Object.fromEntries(
@@ -141,6 +155,18 @@ function parse(content) {
 					// }}}
 					// Type {{{
 					ref.type = ref.type && _typeTranslations[ref.type] ? _typeTranslations[ref.type] : 'unknown';
+					// }}}
+					// Address {{{
+					if (ref.fallbackCity) { // Use city as address if thats all we have
+						if (!ref.address) ref.address = ref.fallbackCity;
+						delete ref.fallbackCity;
+					}
+					// }}}
+					// Abstract {{{
+					if (ref.fallbackAbstract) { // Use backup abstract if we have one
+						if (!ref.abstract) ref.abstract = ref.fallbackAbstract;
+						delete ref.fallbackAbstract;
+					}
 					// }}}
 					// }}}
 					Object.keys(ref).forEach(k => {

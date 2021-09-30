@@ -42,7 +42,7 @@ describe('RIS parser - test #1', function() {
 		expect(sample.authors[3]).to.equal('Agosta');
 		expect(sample).to.have.property('date', '2014//');
 		expect(sample).to.have.property('pages', '153-162');
-		expect(sample).to.have.property('address', 'Netherlands');
+		expect(sample).to.have.property('address', 'Husain, Fatima T.: husainf@illinois.edu');
 		expect(sample).to.have.property('isbn', '0378-5955');
 		expect(sample).to.have.property('abstract');
 		expect(sample.abstract).to.match(/^Resting state functional connectivity/);
